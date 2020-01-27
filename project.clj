@@ -6,4 +6,10 @@
   :dependencies [[org.clojure/clojure "1.10.0"]]
   :main ^:skip-aot helmet.core
   :target-path "target/%s"
-  :profiles {:uberjar {:aot :all}})
+
+  ;; nREPL by default starts in the :main namespace, we want to start in `user`
+  ;; because that's where our development helper functions like (refresh) live.
+  :repl-options {:init-ns user}
+
+  :profiles {:dev {:dependencies [[org.clojure/tools.namespace "0.3.1"]]}
+             :uberjar {:aot :all}})
