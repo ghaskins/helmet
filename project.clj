@@ -7,8 +7,9 @@
                  [clj-commons/clj-yaml "0.7.0"]
                  [ubergraph "0.8.2"]
                  [me.raynes/fs "1.4.6"]
-                 [me.raynes/conch "0.8.0"]]
-  :main ^:skip-aot helmet.core
+                 [me.raynes/conch "0.8.0"]
+                 [org.clojure/tools.cli "0.4.2"]]
+  :main ^:skip-aot helmet.main
   :target-path "target/%s"
 
   ;; nREPL by default starts in the :main namespace, we want to start in `user`

@@ -3,15 +3,20 @@
             [ubergraph.core :as uber]
             [ubergraph.alg :refer [topsort]]
             [me.raynes.fs :as fs]
-            [me.raynes.conch :as sh])
-  (:gen-class))
+            [me.raynes.conch :as sh]
+            [clojure.string :as string]))
 
 (sh/programs helm)
 
+(defn is-chart? [path]
+  (fs/file? (fs/file path "Chart.yaml")))
+
 (defn load-desc [path]
-  (let [source (fs/file path "Chart.yaml")]
-    (when (fs/file? source)
-      (into {} (yaml/parse-string (slurp source))))))
+  (when (is-chart? path)
+    (->> (fs/file path "Chart.yaml")
+         (slurp)
+         (yaml/parse-string)
+         (into {}))))
 
 (defn get-deps [path]
   (-> (load-desc path)
@@ -19,7 +24,7 @@
       (update :dependencies (fn [deps]
                               (->> deps
                                    (map :repository)
-                                   (filter #(clojure.string/includes? % "file://"))
+                                   (filter #(string/includes? % "file://"))
                                    (map #(fs/file path (subs % 7)))
                                    (map get-deps)
                                    (remove empty?))))))
@@ -31,7 +36,7 @@
                   (-> (add-node acc dep)
                       (uber/add-directed-edges [name (:name dep)]))) $ dependencies)))
 
-(defn package [config graph chart]
+(defn build-deps [config graph chart]
   (println "building:" chart)
   (let [[_ {:keys [path]}] (uber/node-with-attrs graph chart)]
     (helm "dep" "build" path)))
@@ -39,9 +44,5 @@
 (defn exec [{:keys [input] :as config}]
   (let [graph (add-node (uber/digraph) (get-deps input))
         targets (reverse (topsort graph))]
-    (run! (partial package config graph) targets)))
+    (run! (partial build-deps config graph) targets)))
 
-(defn -main
-  "I don't do a whole lot ... yet."
-  [& args]
-  (println "Hello, World!"))
