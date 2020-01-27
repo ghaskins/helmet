@@ -46,9 +46,11 @@
       (exit -1 (str "\"" path "\" does not appear to be a Helm chart"))
 
       :else
-      (do
+      (try
         (core/exec {:input path})
-        0))))
+        0
+        (catch clojure.lang.ExceptionInfo e
+          (exit -1 (-> e ex-data :stderr)))))))
 
 (defn -main
   [& args]

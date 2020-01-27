@@ -39,7 +39,7 @@
 (defn build-deps [config graph chart]
   (println "building:" chart)
   (let [[_ {:keys [path]}] (uber/node-with-attrs graph chart)]
-    (helm "dep" "build" path)))
+    (helm "dep" "build" path {:verbose true})))
 
 (defn exec [{:keys [input] :as config}]
   (let [graph (add-node (uber/digraph) (get-deps input))
