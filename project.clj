@@ -1,8 +1,7 @@
 (defproject helmet "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "A tool to manage transitive dependencies in Helm"
   :url "http://example.com/FIXME"
-  :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
-            :url "https://www.eclipse.org/legal/epl-2.0/"}
+  :plugins [[lein-bin "0.3.5"]]
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [clj-commons/clj-yaml "0.7.0"]
                  [ubergraph "0.8.2"]
@@ -11,6 +10,10 @@
                  [org.clojure/tools.cli "0.4.2"]]
   :main ^:skip-aot helmet.main
   :target-path "target/%s"
+
+  :bin {:name "helmet"
+        :bin-path "target"
+        :bootclasspath false}
 
   ;; nREPL by default starts in the :main namespace, we want to start in `user`
   ;; because that's where our development helper functions like (refresh) live.
