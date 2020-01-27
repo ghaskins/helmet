@@ -9,7 +9,9 @@
    ["-v" "--version" "Print the version and exit"]
    ["-p" "--path PATH" "The path to the Helm chart to package"
     :default "."
-    :validate [core/is-chart? "Must be a path to a Helm chart"]]])
+    :validate [core/is-chart? "Must be a path to a Helm chart"]]
+   ["-o" "--output PATH" "The path for output files"
+    :default "target"]])
 
 (defn exit [status msg & rest]
   (do
@@ -30,7 +32,7 @@
 
 (defn -app
   [& args]
-  (let [{{:keys [help version path]} :options :keys [arguments errors summary]} (parse-opts args options)]
+  (let [{{:keys [help version path] :as options} :options :keys [arguments errors summary]} (parse-opts args options)]
     (cond
 
       help
@@ -47,7 +49,7 @@
 
       :else
       (try
-        (core/exec {:input path})
+        (core/exec options)
         0
         (catch clojure.lang.ExceptionInfo e
           (exit -1 (-> e ex-data :stderr)))))))

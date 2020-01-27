@@ -36,13 +36,16 @@
                   (-> (add-node acc dep)
                       (uber/add-directed-edges [name (:name dep)]))) $ dependencies)))
 
-(defn build-deps [config graph chart]
+(defn build-deps [{:keys [output]} graph chart]
   (println "building:" chart)
-  (let [[_ {:keys [path]}] (uber/node-with-attrs graph chart)]
-    (helm "dep" "build" path {:verbose true})))
+  (let [[_ {:keys [path]}] (uber/node-with-attrs graph chart)
+        dst-path (fs/normalized (fs/file output chart))]
+    (fs/copy-dir path dst-path)
+    (fs/delete (fs/file dst-path "Chart.lock"))
+    (helm "dep" "build" dst-path {:verbose true})))
 
-(defn exec [{:keys [input] :as config}]
-  (let [graph (add-node (uber/digraph) (get-deps input))
+(defn exec [{:keys [path] :as config}]
+  (let [graph (add-node (uber/digraph) (get-deps path))
         targets (reverse (topsort graph))]
     (run! (partial build-deps config graph) targets)))
 
