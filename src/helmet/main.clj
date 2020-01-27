@@ -1,7 +1,8 @@
 (ns helmet.main
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as string]
-            [helmet.core :as core])
+            [helmet.core :as core]
+            [me.raynes.fs :as fs])
   (:gen-class))
 
 (def options
@@ -11,7 +12,9 @@
     :default "."
     :validate [core/is-chart? "Must be a path to a Helm chart"]]
    ["-o" "--output PATH" "The path for output files"
-    :default "target"]])
+    :default "target"]
+   [nil "--version-overrides PATH" "The path to a YAML table with appVersion overrides"
+    :validate [fs/file? "The version-overrides.yaml must exist"]]])
 
 (defn exit [status msg & rest]
   (do
