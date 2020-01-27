@@ -1,44 +1,29 @@
 # helmet
 
-FIXME: description
+A tool to assist with compiling Helm Charts
 
-## Installation
+## Background
 
-Download from http://example.com/FIXME.
+A core feature of Helm Charts is dependency management.  One interesting aspect of Dependency Management is the use of `file://` URLs.  These allow multiple charts to exist together and to be composed in various ways.
+
+However, there is a limitation in Helm that `file://` URLs are not well supported:  Dependency commands such as `helm dep build` will not resolve transitive dependencies. 
+
+`Helmet` enhances the Helm dep management story by providing a tool that can understand `file://` based dependencies and act as a replacement for the `helm dep build` command with full support for transitives.
+
+It also offers an ability to override the `appVersion` of various charts in the process, enabling a straight forward way to create a fully packaged assembly.
 
 ## Usage
 
-FIXME: explanation
+```
+$ helmet -h
+helmet version: v0.1.0-SNAPSHOT
 
-    $ java -jar helmet-0.1.0-standalone.jar [args]
+Usage: helmet [options]
 
-## Options
-
-FIXME: listing of options this app accepts.
-
-## Examples
-
-...
-
-### Bugs
-
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
-
-## License
-
-Copyright © 2020 FIXME
-
-This program and the accompanying materials are made available under the
-terms of the Eclipse Public License 2.0 which is available at
-http://www.eclipse.org/legal/epl-2.0.
-
-This Source Code may also be made available under the following Secondary
-Licenses when the conditions for such availability set forth in the Eclipse
-Public License, v. 2.0 are satisfied: GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or (at your
-option) any later version, with the GNU Classpath Exception which is available
-at https://www.gnu.org/software/classpath/license.html.
+Options:
+  -h, --help
+  -v, --version                         Print the version and exit
+  -p, --path PATH               .       The path to the Helm chart to package
+  -o, --output PATH             target  The path for output files
+      --version-overrides PATH          The path to a YAML table with appVersion overrides
+```
