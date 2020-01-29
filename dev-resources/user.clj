@@ -9,4 +9,4 @@
 (def test-chart (fs/file (io/resource "foo")))
 
 (defn exec []
-  (core/exec {:input test-chart}))
+  (core/exec {:path test-chart}))
