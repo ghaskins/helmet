@@ -33,6 +33,11 @@
     (-> (slurp path)
         (yaml/parse-string :keywords false))))
 
+(defn- file-scheme?
+  "Predicate returning 'true' if the path includes a file:// scheme prefix"
+  [path]
+  (string/includes? path "file://"))
+
 (defn- strip-file-scheme
   "Strips off the 'file://' scheme and returns a fully qualified file path"
   [base path]
@@ -46,7 +51,7 @@
       (update :dependencies (fn [deps]
                               (->> deps
                                    (map :repository)
-                                   (filter #(string/includes? % "file://"))
+                                   (filter file-scheme?)
                                    (map (partial strip-file-scheme path))
                                    (map get-deps)
                                    (remove empty?))))))
