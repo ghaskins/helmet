@@ -13,8 +13,8 @@
     :validate [core/is-chart? "Must be a path to a Helm chart"]]
    ["-o" "--output PATH" "The path for output files"
     :default "target"]
-   [nil "--version-overrides PATH" "The path to a YAML table with appVersion overrides"
-    :validate [fs/file? "The version-overrides.yaml must exist"]]])
+   [nil "--metadata PATH" "The path to a YAML table with metadata overrides"
+    :validate [fs/file? "The metadata yaml must exist"]]])
 
 (defn exit [status msg & rest]
   (do
@@ -35,7 +35,7 @@
 
 (defn -app
   [& args]
-  (let [{{:keys [help version path] :as options} :options :keys [arguments errors summary]} (parse-opts args options)]
+  (let [{{:keys [help path] :as options} :options :keys [arguments errors summary]} (parse-opts args options)]
     (cond
 
       help
@@ -44,7 +44,7 @@
       (not= errors nil)
       (exit -1 "Error: " (string/join errors))
 
-      version
+      (:version options)
       (exit 0 (version))
 
       (not (core/is-chart? path))

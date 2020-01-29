@@ -26,8 +26,8 @@
          (slurp)
          (yaml/parse-string))))
 
-(defn- load-appversion-overrides
-  "Loads and parses a versions.yaml file, which is expected to contain a map of <chart-name, appVersion> tuples"
+(defn- load-metadata-overrides
+  "Loads and parses a metadata.yaml file, which is expected to contain details such as appVersion overrides"
   [path]
   (when (fs/file? path)
     (-> (slurp path)
@@ -101,8 +101,8 @@
   N.B. Updating the version is optional.  If a replacement value is not found, Helmet will leave the value
        as specified in the original Chart.yaml alone.
   "
-  [appversions chart path]
-  (let [appversion (get appversions chart)]
+  [metadata chart path]
+  (let [appversion (get-in metadata [chart "image" "tag"])]
     (as-> (load-chart-yaml path) $
           (cond-> $ (some? appversion) (assoc :appVersion appversion))
           (update $ :dependencies #(map update-dependency %))
@@ -122,9 +122,9 @@
 (defn exec
   "Primary entry point for Helmet.  Computes the file:// oriented DAG and then runs 'helm dep build' in reverse
   topological order"
-  [{:keys [path version-overrides] :as config}]
+  [{:keys [path metadata] :as config}]
   (let [graph (add-node (uber/digraph) (get-deps path))
         targets (reverse (topsort graph))
-        appversions (load-appversion-overrides version-overrides)]
+        appversions (load-metadata-overrides metadata)]
     (run! (partial build-chart config appversions graph) targets)))
 
