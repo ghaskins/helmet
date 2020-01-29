@@ -1,6 +1,6 @@
-(defproject helmet "0.1.0-SNAPSHOT"
+(defproject helmet "1.0.0"
   :description "A tool to manage transitive dependencies in Helm"
-  :url "http://example.com/FIXME"
+  :url "https://gitlab.com/manetu/tools/helmet"
   :plugins [[lein-bin "0.3.5"]]
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [clj-commons/clj-yaml "0.7.0"]
