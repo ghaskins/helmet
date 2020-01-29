@@ -39,9 +39,9 @@
   (string/includes? path "file://"))
 
 (defn- strip-file-scheme
-  "Strips off the 'file://' scheme and returns a fully qualified file path"
-  [base path]
-  (fs/file base (subs path 7)))
+  "Strips off the 'file://' scheme"
+  [path]
+  (subs path 7))
 
 (defn- get-deps
   "Recursively builds a model of a Chart, including its direct and transitive dependencies of type 'file://'"
@@ -52,7 +52,8 @@
                               (->> deps
                                    (map :repository)
                                    (filter file-scheme?)
-                                   (map (partial strip-file-scheme path))
+                                   (map strip-file-scheme)
+                                   (map (partial fs/file path))
                                    (map get-deps)
                                    (remove empty?))))))
 
@@ -78,20 +79,33 @@
   (fs/copy-dir src dst)
   (fs/delete (fs/file dst "Chart.lock")))
 
-(defn- update-appversion
-  "Conditionally updates the 'appVersion' value in the Chart.yaml by streaming it in and writing it back out.
-  The table of appVersions to replace is specified on input.
+(defn update-dependency
+  "Translates any file:// based dependencies to be relative to the current directory, since all
+  of the charts are moved to the output directory for processing"
+  [dep]
+  (update dep :repository
+          (fn [repository]
+            (if (file-scheme? repository)
+              (->> (strip-file-scheme repository)
+                   (fs/base-name)
+                   (str "file://../"))
+              repository))))
 
-  Updating the version is optional.  If a replacement value is not found, Helmet will leave the value as specified
-  in the Chart.yaml alone.
+(defn- update-chart
+  "
+  Perform any necessary transformations of the Chart.yaml by streaming it in and writing it back out:
 
-  N.B. We process the yaml irrespective of whether the appVersion is being updated so that the output of the
-       Chart.yaml is consistent with other Helmet processed Charts.
+   - Conditionally updates the 'appVersion' value.  The table of appVersions to replace is specified on input.
+   - Refactors any file:// based dependencies since the Charts have been moved.
+
+  N.B. Updating the version is optional.  If a replacement value is not found, Helmet will leave the value
+       as specified in the original Chart.yaml alone.
   "
   [appversions chart path]
   (let [appversion (get appversions chart)]
     (as-> (load-chart-yaml path) $
           (cond-> $ (some? appversion) (assoc :appVersion appversion))
+          (update $ :dependencies #(map update-dependency %))
           (yaml/generate-string $)
           (spit (chart-yaml path) $))))
 
@@ -102,7 +116,7 @@
   (let [[_ {:keys [path]}] (uber/node-with-attrs graph chart)
         dst-path (fs/normalized (fs/file output chart))]
     (copy-chart path dst-path)
-    (update-appversion versions chart dst-path)
+    (update-chart versions chart dst-path)
     (helm "dep" "build" dst-path {:verbose true})))
 
 (defn exec
