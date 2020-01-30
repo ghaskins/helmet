@@ -120,8 +120,7 @@
   "Executes the specified command in 'dir' and proxies stdout/err to our console"
   [command dir]
   (let [proc (apply sh.ll/proc (sh/add-proc-args (command-args command) {:dir dir}))]
-    (sh.ll/stream-to-out proc :out)
-    (sh.ll/stream-to-out proc :err)
+    (run! (partial sh.ll/stream-to-out proc) [:out :err])
     (let [exit-code @(future (sh.ll/exit-code proc))]
       (when-not (zero? exit-code)
         (throw (ex-info "command failed" {:command command :dir dir :exit-code exit-code}))))))
