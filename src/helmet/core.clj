@@ -111,11 +111,23 @@
           (yaml/generate-string $)
           (spit (chart-yaml path) $))))
 
-(defn- command-args [command]
+(defn- command-args
+  "Splits a command string, such as 'helm dep update' into a sequence, like ['helm' 'dep' 'update]"
+  [command]
   (remove empty? (string/split command #" ")))
 
+(defn- run-command
+  "Executes the specified command in 'dir' and proxies stdout/err to our console"
+  [command dir]
+  (let [proc (apply sh.ll/proc (sh/add-proc-args (command-args command) {:dir dir}))]
+    (sh.ll/stream-to-out proc :out)
+    (sh.ll/stream-to-out proc :err)
+    (let [exit-code @(future (sh.ll/exit-code proc))]
+      (when-not (zero? exit-code)
+        (throw (ex-info "command failed" {:command command :dir dir :exit-code exit-code}))))))
+
 (defn- build-chart
-  "Executes 'helm dep build' on the specified chart, using our computed DAG as an attribute reference"
+  "Executes the specified command on the specified chart, using our computed DAG as an attribute reference"
   [{:keys [output command verbose] :as config} versions graph chart]
   (let [[_ {:keys [path]}] (uber/node-with-attrs graph chart)
         dir (fs/normalized (fs/file output chart))]
@@ -123,12 +135,7 @@
     (when verbose (println (str "HELMET: running \"" command "\" in " dir)))
     (copy-chart path dir)
     (update-chart versions chart dir)
-    (let [proc (apply sh.ll/proc (sh/add-proc-args (command-args command) {:dir dir}))]
-      (sh.ll/stream-to-out proc :out)
-      (sh.ll/stream-to-out proc :err)
-      (let [exit-code @(future (sh.ll/exit-code proc))]
-        (when-not (zero? exit-code)
-          (throw (ex-info "command failed" {:command command :dir dir :exit-code exit-code})))))))
+    (run-command command dir)))
 
 (defn exec
   "Primary entry point for Helmet.  Computes the file:// oriented DAG and then runs 'helm dep build' in reverse
