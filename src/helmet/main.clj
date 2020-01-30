@@ -14,7 +14,10 @@
    ["-o" "--output PATH" "The path for output files"
     :default "target"]
    [nil "--metadata PATH" "The path to a YAML table with metadata overrides"
-    :validate [fs/file? "The metadata yaml must exist"]]])
+    :validate [fs/file? "The metadata yaml must exist"]]
+   ["-c" "--command COMMAND"
+    :default "helm dep update --skip-refresh"]
+   [nil "--verbose"]])
 
 (defn exit [status msg & rest]
   (do
@@ -55,7 +58,7 @@
         (core/exec options)
         0
         (catch clojure.lang.ExceptionInfo e
-          (exit -1 (-> e ex-data :stderr)))))))
+          (exit (-> e ex-data :exit-code) ""))))))
 
 (defn -main
   [& args]

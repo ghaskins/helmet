@@ -4,9 +4,8 @@
             [ubergraph.alg :refer [topsort]]
             [me.raynes.fs :as fs]
             [me.raynes.conch :as sh]
+            [me.raynes.conch.low-level :as sh.ll]
             [clojure.string :as string]))
-
-(sh/programs helm)
 
 (defn- chart-yaml
   "Computes the file reference to the Chart.yaml for a given 'path'"
@@ -75,7 +74,6 @@
 (defn- copy-chart
   "Copies a Chart from src to dst, cleaning up residual artifacts such as Chart.lock"
   [src dst]
-  (fs/delete-dir dst)
   (fs/copy-dir src dst)
   (fs/delete (fs/file dst "Chart.lock")))
 
@@ -109,15 +107,24 @@
           (yaml/generate-string $)
           (spit (chart-yaml path) $))))
 
+(defn- command-args [command]
+  (remove empty? (string/split command #" ")))
+
 (defn- build-chart
   "Executes 'helm dep build' on the specified chart, using our computed DAG as an attribute reference"
-  [{:keys [output] :as config} versions graph chart]
-  (println "building:" chart)
+  [{:keys [output command verbose] :as config} versions graph chart]
   (let [[_ {:keys [path]}] (uber/node-with-attrs graph chart)
-        dst-path (fs/normalized (fs/file output chart))]
-    (copy-chart path dst-path)
-    (update-chart versions chart dst-path)
-    (helm "dep" "build" dst-path {:verbose true})))
+        dir (fs/normalized (fs/file output chart))]
+    (println (str "HELMET: building " chart))
+    (when verbose (println (str "HELMET: running \"" command "\" in " dir)))
+    (copy-chart path dir)
+    (update-chart versions chart dir)
+    (let [proc (apply sh.ll/proc (sh/add-proc-args (command-args command) {:dir dir}))]
+      (sh.ll/stream-to-out proc :out)
+      (sh.ll/stream-to-out proc :err)
+      (let [exit-code @(future (sh.ll/exit-code proc))]
+        (when-not (zero? exit-code)
+          (throw (ex-info "command failed" {:command command :dir dir :exit-code exit-code})))))))
 
 (defn exec
   "Primary entry point for Helmet.  Computes the file:// oriented DAG and then runs 'helm dep build' in reverse
