@@ -89,6 +89,10 @@
                    (str "file://../"))
               repository))))
 
+(defn- get-appversion [metadata chart]
+  (when-let [appversion (get-in metadata [chart "image" "tag"])]
+    (string/replace appversion #"^v" "")))
+
 (defn- update-chart
   "
   Perform any necessary transformations of the Chart.yaml by streaming it in and writing it back out:
@@ -100,7 +104,7 @@
        as specified in the original Chart.yaml alone.
   "
   [metadata chart path]
-  (let [appversion (get-in metadata [chart "image" "tag"])]
+  (let [appversion (get-appversion metadata chart)]
     (as-> (load-chart-yaml path) $
           (cond-> $ (some? appversion) (assoc :appVersion appversion))
           (update $ :dependencies #(map update-dependency %))
