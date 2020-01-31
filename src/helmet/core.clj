@@ -74,6 +74,7 @@
 (defn- copy-chart
   "Copies a Chart from src to dst, cleaning up residual artifacts such as Chart.lock"
   [src dst]
+  (fs/delete-dir dst)
   (fs/copy-dir src dst)
   (fs/delete (fs/file dst "Chart.lock")))
 
