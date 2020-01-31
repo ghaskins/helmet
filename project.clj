@@ -1,4 +1,4 @@
-(defproject helmet "1.2.2-SNAPSHOT"
+(defproject helmet "1.2.2"
   :description "A tool to manage transitive dependencies in Helm"
   :url "https://gitlab.com/manetu/tools/helmet"
   :plugins [[lein-bin "0.3.5"]]
