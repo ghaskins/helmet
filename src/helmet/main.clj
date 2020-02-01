@@ -17,7 +17,8 @@
     :validate [fs/file? "The metadata yaml must exist"]]
    ["-c" "--command COMMAND"
     :default "helm dep update --skip-refresh"]
-   [nil "--verbose"]])
+   [nil "--verbose"]
+   [nil "--strip-local-deps" "Strip off any local file:// dependencies after building"]])
 
 (defn exit [status msg & rest]
   (do

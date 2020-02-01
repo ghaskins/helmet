@@ -78,7 +78,7 @@
   (fs/copy-dir src dst)
   (fs/delete (fs/file dst "Chart.lock")))
 
-(defn update-dependency
+(defn migrate-file-paths
   "Translates any file:// based dependencies to be relative to the current directory, since all
   of the charts are moved to the output directory for processing"
   [dep]
@@ -90,13 +90,28 @@
                    (str "file://../"))
               repository))))
 
-(defn- get-appversion [metadata chart]
+(defn remove-file-paths
+  "Removes any file:// type dependencies"
+  [dependencies]
+  (remove #(file-scheme? (:repository %)) dependencies))
+
+(defn- get-appversion
+  "Extracts the appversion from the metadata table, if available"
+  [metadata chart]
   (when-let [appversion (get-in metadata [chart "image" "tag"])]
     (string/replace appversion #"^v" "")))
 
 (defn- update-chart
+  "Applies 'f' to the Chart.yaml by streaming it in and writing it back out"
+  [path f]
+  (->> (load-chart-yaml path)
+        (f)
+        (yaml/generate-string)
+        (spit (chart-yaml path))))
+
+(defn- preprocess-chart
   "
-  Perform any necessary transformations of the Chart.yaml by streaming it in and writing it back out:
+  Perform any necessary pre-processing transformations of the Chart.yaml:
 
    - Conditionally updates the 'appVersion' value.  The table of appVersions to replace is specified on input.
    - Refactors any file:// based dependencies since the Charts have been moved.
@@ -106,11 +121,20 @@
   "
   [metadata chart path]
   (let [appversion (get-appversion metadata chart)]
-    (as-> (load-chart-yaml path) $
-          (cond-> $ (some? appversion) (assoc :appVersion appversion))
-          (update $ :dependencies #(map update-dependency %))
-          (yaml/generate-string $)
-          (spit (chart-yaml path) $))))
+    (update-chart
+      path
+      (fn [yaml]
+        (-> yaml
+            (cond-> (some? appversion) (assoc :appVersion appversion))
+            (update :dependencies #(map migrate-file-paths %)))))))
+
+(defn postprocess-chart
+  [{:keys [strip-local-deps] :as options} path]
+  (when strip-local-deps
+    (update-chart
+      path
+      (fn [yaml]
+        (update yaml :dependencies remove-file-paths)))))
 
 (defn- command-args
   "Splits a command string, such as 'helm dep update' into a sequence, like ['helm' 'dep' 'update]"
@@ -128,14 +152,15 @@
 
 (defn- build-chart
   "Executes the specified command on the specified chart, using our computed DAG as an attribute reference"
-  [{:keys [output command verbose] :as config} versions graph chart]
+  [{:keys [output command verbose] :as options} versions graph chart]
   (let [[_ {:keys [path]}] (uber/node-with-attrs graph chart)
         dir (fs/normalized (fs/file output chart))]
     (println (str "HELMET: building " chart))
     (when verbose (println (str "HELMET: running \"" command "\" in " dir)))
     (copy-chart path dir)
-    (update-chart versions chart dir)
-    (run-command command dir)))
+    (preprocess-chart versions chart dir)
+    (run-command command dir)
+    (postprocess-chart options dir)))
 
 (defn exec
   "Primary entry point for Helmet.  Computes the file:// oriented DAG and then runs 'helm dep build' in reverse
