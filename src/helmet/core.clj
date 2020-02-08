@@ -131,12 +131,13 @@
 (defn- command-args
   "Splits a command string, such as 'helm dep update' into a sequence, like ['helm' 'dep' 'update]"
   [command]
-  (remove empty? (string/split command #" ")))
+  (into [] (remove empty? (string/split command #" "))))
 
 (defn- run-command
   "Executes the specified command in 'dir' and proxies stdout/err to our console"
   [command dir]
-  (let [proc (apply sh.ll/proc (sh/add-proc-args (command-args command) {:dir dir}))]
+  (let [cmd (conj (command-args command) (str dir))
+        proc (apply sh.ll/proc (sh/add-proc-args cmd {}))]
     (run! (partial sh.ll/stream-to-out proc) [:out :err])
     (let [exit-code @(future (sh.ll/exit-code proc))]
       (when-not (zero? exit-code)

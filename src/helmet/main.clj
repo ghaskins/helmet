@@ -15,7 +15,7 @@
     :default "target"]
    [nil "--metadata PATH" "The path to a YAML table with metadata overrides"
     :validate [fs/file? "The metadata yaml must exist"]]
-   ["-c" "--command COMMAND"
+   ["-c" "--command COMMAND" "Executes a custom command for each Chart, appending the path to the chart as the last param"
     :default "helm dep update --skip-refresh"]
    [nil "--verbose"]])
 
