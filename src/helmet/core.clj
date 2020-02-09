@@ -17,20 +17,27 @@
   [path]
   (fs/file? (chart-yaml path)))
 
+(defn- load-yaml
+  "Loads yaml from a file"
+  [path & args]
+  (when (fs/file? path)
+    (apply yaml/parse-string (slurp path) (conj args :mark true))))
+
+(defn- store-yaml
+  "Stores a map 'y' as a yaml file"
+  [path y]
+  (spit path (yaml/generate-string y :mark true)))
+
 (defn- load-chart-yaml
   "Loads and parses the Chart.yaml"
   [path]
   (when (is-chart? path)
-    (->> (chart-yaml path)
-         (slurp)
-         (yaml/parse-string))))
+    (load-yaml (chart-yaml path))))
 
 (defn- load-metadata-overrides
   "Loads and parses a metadata.yaml file, which is expected to contain details such as appVersion overrides"
   [path]
-  (when (fs/file? path)
-    (-> (slurp path)
-        (yaml/parse-string :keywords false))))
+  (load-yaml path :keywords false))
 
 (defn- file-scheme?
   "Predicate returning 'true' if the path includes a file:// scheme prefix"
@@ -90,13 +97,21 @@
                    (str "file://../"))
               repository))))
 
-(defn- get-appversion [metadata chart]
+(defn- get-appversion
+  [metadata chart]
   (when-let [appversion (get-in metadata [chart "image" "tag"])]
     (string/replace appversion #"^v" "")))
 
+(defn update-yaml
+  "Applies the transform 'f' to the yaml specified in 'path' by streaming it in and writing it back out"
+  [path f]
+  (->> (load-yaml path)
+       (f)
+       (store-yaml path)))
+
 (defn- update-chart
   "
-  Perform any necessary transformations of the Chart.yaml by streaming it in and writing it back out:
+  Perform any necessary transformations of the Chart.yaml:
 
    - Conditionally updates the 'appVersion' value.  The table of appVersions to replace is specified on input.
    - Refactors any file:// based dependencies since the Charts have been moved.
@@ -106,21 +121,23 @@
   "
   [metadata chart path]
   (let [appversion (get-appversion metadata chart)]
-    (as-> (load-chart-yaml path) $
-          (cond-> $ (some? appversion) (assoc :appVersion appversion))
-          (update $ :dependencies #(map update-dependency %))
-          (yaml/generate-string $)
-          (spit (chart-yaml path) $))))
+    (update-yaml
+      (chart-yaml path)
+      (fn [y]
+        (-> y
+            (cond-> (some? appversion) (assoc :appVersion appversion))
+            (update :dependencies #(map update-dependency %)))))))
 
 (defn- command-args
   "Splits a command string, such as 'helm dep update' into a sequence, like ['helm' 'dep' 'update]"
   [command]
-  (remove empty? (string/split command #" ")))
+  (into [] (remove empty? (string/split command #" "))))
 
 (defn- run-command
   "Executes the specified command in 'dir' and proxies stdout/err to our console"
   [command dir]
-  (let [proc (apply sh.ll/proc (sh/add-proc-args (command-args command) {:dir dir}))]
+  (let [cmd (conj (command-args command) (str dir))
+        proc (apply sh.ll/proc (sh/add-proc-args cmd {}))]
     (run! (partial sh.ll/stream-to-out proc) [:out :err])
     (let [exit-code @(future (sh.ll/exit-code proc))]
       (when-not (zero? exit-code)
